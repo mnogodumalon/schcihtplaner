@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, Users, Calendar, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, Users, Calendar, Loader2, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,32 @@ const emptyFormData: ShiftFormData = {
   notes: '',
 };
 
+type PositionType = 'trainee' | 'parttime' | 'manager' | 'employee';
+
+const POSITION_LABELS: Record<PositionType, string> = {
+  trainee: 'Auszubildender',
+  parttime: 'Teilzeit',
+  manager: 'Manager',
+  employee: 'Mitarbeiter',
+};
+
+const DEFAULT_COLORS = [
+  '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899',
+  '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+];
+
+interface EmployeeFormData {
+  name: string;
+  position: PositionType;
+  color: string;
+}
+
+const emptyEmployeeFormData: EmployeeFormData = {
+  name: '',
+  position: 'employee',
+  color: DEFAULT_COLORS[0],
+};
+
 export default function Dashboard() {
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -71,6 +97,11 @@ export default function Dashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<Shifts | null>(null);
   const [formData, setFormData] = useState<ShiftFormData>(emptyFormData);
+
+  // Employee dialog state
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employees | null>(null);
+  const [employeeFormData, setEmployeeFormData] = useState<EmployeeFormData>(emptyEmployeeFormData);
 
   // Load data from API on mount
   useEffect(() => {
@@ -207,6 +238,79 @@ export default function Dashboard() {
     }
   };
 
+  // Employee handlers
+  const openAddEmployeeDialog = () => {
+    setEditingEmployee(null);
+    const randomColor = DEFAULT_COLORS[employees.length % DEFAULT_COLORS.length];
+    setEmployeeFormData({ ...emptyEmployeeFormData, color: randomColor });
+    setIsEmployeeDialogOpen(true);
+  };
+
+  const openEditEmployeeDialog = (employee: Employees) => {
+    setEditingEmployee(employee);
+    setEmployeeFormData({
+      name: employee.fields.name || '',
+      position: employee.fields.position || 'employee',
+      color: employee.fields.color || DEFAULT_COLORS[0],
+    });
+    setIsEmployeeDialogOpen(true);
+  };
+
+  const handleSaveEmployee = async () => {
+    if (!employeeFormData.name) return;
+
+    setIsSaving(true);
+    try {
+      const employeeFields = {
+        name: employeeFormData.name,
+        position: employeeFormData.position,
+        color: employeeFormData.color,
+      };
+
+      if (editingEmployee) {
+        await LivingAppsService.updateEmployee(editingEmployee.record_id, employeeFields);
+        setEmployees((prev) =>
+          prev.map((e) =>
+            e.record_id === editingEmployee.record_id
+              ? { ...e, updatedat: new Date().toISOString(), fields: employeeFields }
+              : e
+          )
+        );
+      } else {
+        const result = await LivingAppsService.createEmployee(employeeFields);
+        const newEmployee: Employees = {
+          record_id: result.id || `emp-${Date.now()}`,
+          createdat: new Date().toISOString(),
+          updatedat: null,
+          fields: employeeFields,
+        };
+        setEmployees((prev) => [...prev, newEmployee]);
+      }
+      setIsEmployeeDialogOpen(false);
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      alert('Fehler beim Speichern des Mitarbeiters. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!editingEmployee) return;
+
+    setIsSaving(true);
+    try {
+      await LivingAppsService.deleteEmployee(editingEmployee.record_id);
+      setEmployees((prev) => prev.filter((e) => e.record_id !== editingEmployee.record_id));
+      setIsEmployeeDialogOpen(false);
+    } catch (error) {
+      console.error('Fehler beim Löschen:', error);
+      alert('Fehler beim Löschen des Mitarbeiters. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getTodayShifts = () => {
     const today = new Date();
     return shifts.filter((s) => s.fields.date && isSameDay(new Date(s.fields.date), today));
@@ -237,15 +341,18 @@ export default function Dashboard() {
 
         {/* Stats */}
         <div className="mb-6 grid gap-4 grid-cols-1 sm:grid-cols-3">
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={openAddEmployeeDialog}>
             <CardContent className="flex items-center gap-4 p-4">
               <div className="rounded-full bg-blue-100 p-3">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm text-slate-600">Mitarbeiter</p>
                 <p className="text-2xl font-bold text-slate-900">{employees.length}</p>
               </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <UserPlus className="h-4 w-4 text-blue-600" />
+              </Button>
             </CardContent>
           </Card>
           <Card>
@@ -326,7 +433,10 @@ export default function Dashboard() {
                   {employees.map((employee) => (
                     <tr key={employee.record_id} className="border-b last:border-b-0">
                       <td className="border-r p-3">
-                        <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditEmployeeDialog(employee)}
+                          className="flex items-center gap-2 hover:bg-slate-100 rounded px-2 py-1 -mx-2 -my-1 transition"
+                        >
                           <div
                             className="h-3 w-3 rounded-full"
                             style={{ backgroundColor: employee.fields.color || '#6b7280' }}
@@ -334,7 +444,8 @@ export default function Dashboard() {
                           <span className="font-medium text-slate-900">
                             {employee.fields.name}
                           </span>
-                        </div>
+                          <Pencil className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100" />
+                        </button>
                       </td>
                       {weekDays.map((day, i) => {
                         const dayShifts = getShiftsForEmployeeAndDate(employee.record_id, day);
@@ -469,6 +580,87 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Employee Dialog */}
+      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingEmployee ? 'Mitarbeiter bearbeiten' : 'Neuer Mitarbeiter'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="emp-name">Name</Label>
+              <Input
+                id="emp-name"
+                placeholder="z.B. Max Mustermann"
+                value={employeeFormData.name}
+                onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="emp-position">Position</Label>
+              <Select
+                value={employeeFormData.position}
+                onValueChange={(value) => setEmployeeFormData({ ...employeeFormData, position: value as PositionType })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="employee">Mitarbeiter</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="parttime">Teilzeit</SelectItem>
+                  <SelectItem value="trainee">Auszubildender</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Farbe</Label>
+              <div className="flex flex-wrap gap-2">
+                {DEFAULT_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setEmployeeFormData({ ...employeeFormData, color })}
+                    className={`h-8 w-8 rounded-full border-2 transition ${
+                      employeeFormData.color === color ? 'border-slate-900 scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            {editingEmployee && (
+              <Button
+                variant="destructive"
+                onClick={handleDeleteEmployee}
+                disabled={isSaving}
+                className="w-full sm:w-auto"
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Löschen
+              </Button>
+            )}
+            <div className="flex flex-1 justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)} disabled={isSaving}>
+                Abbrechen
+              </Button>
+              <Button onClick={handleSaveEmployee} disabled={isSaving || !employeeFormData.name}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingEmployee ? 'Speichern' : 'Hinzufügen'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit/Add Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

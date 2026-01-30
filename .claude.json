@@ -14,5 +14,26 @@
     "mnogodumalon/schcihtplaner": [
       "/home/user/app"
     ]
+  },
+  "projects": {
+    "/home/user/app": {
+      "allowedTools": [],
+      "mcpContextUris": [],
+      "mcpServers": {},
+      "enabledMcpjsonServers": [],
+      "disabledMcpjsonServers": [],
+      "hasTrustDialogAccepted": false,
+      "projectOnboardingSeenCount": 0,
+      "hasClaudeMdExternalIncludesApproved": false,
+      "hasClaudeMdExternalIncludesWarningShown": false,
+      "exampleFiles": [
+        "mockData.ts",
+        "Dashboard.tsx",
+        "app.ts",
+        "index.html",
+        "tsconfig.app.tsbuildinfo"
+      ],
+      "exampleFilesGeneratedAt": 1769783256234
+    }
   }
 }
