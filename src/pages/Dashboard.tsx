@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { de } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, Users, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, Users, Calendar, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,11 +22,25 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { mockEmployees, mockShifts } from '@/data/mockData';
-import type { Employee, Shift, ShiftType } from '@/types/app';
-import { SHIFT_TYPE_LABELS, SHIFT_COLORS } from '@/types/app';
+import { LivingAppsService, extractRecordId, createRecordUrl } from '@/services/livingAppsService';
+import { APP_IDS } from '@/types/app';
+import type { Employees, Shifts } from '@/types/app';
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
+type ShiftType = 'morning' | 'afternoon' | 'night';
+
+const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
+  morning: 'Frühschicht',
+  afternoon: 'Spätschicht',
+  night: 'Nachtschicht',
+};
+
+const SHIFT_COLORS: Record<ShiftType, string> = {
+  morning: 'bg-amber-100 border-amber-300 text-amber-900',
+  afternoon: 'bg-blue-100 border-blue-300 text-blue-900',
+  night: 'bg-indigo-100 border-indigo-300 text-indigo-900',
+};
 
 interface ShiftFormData {
   employee: string;
@@ -50,25 +64,46 @@ export default function Dashboard() {
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [employees] = useState<Employee[]>(mockEmployees);
-  const [shifts, setShifts] = useState<Shift[]>(mockShifts);
+  const [employees, setEmployees] = useState<Employees[]>([]);
+  const [shifts, setShifts] = useState<Shifts[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [editingShift, setEditingShift] = useState<Shifts | null>(null);
   const [formData, setFormData] = useState<ShiftFormData>(emptyFormData);
+
+  // Load data from API on mount
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setIsLoading(true);
+        const [employeesData, shiftsData] = await Promise.all([
+          LivingAppsService.getEmployees(),
+          LivingAppsService.getShifts(),
+        ]);
+        setEmployees(employeesData);
+        setShifts(shiftsData);
+      } catch (error) {
+        console.error('Fehler beim Laden der Daten:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
   }, [currentWeekStart]);
 
-  const getShiftsForEmployeeAndDate = (employeeId: string, date: Date): Shift[] => {
-    return shifts.filter(
-      (s) =>
-        s.fields.employee === employeeId &&
-        isSameDay(new Date(s.fields.date), date)
-    );
+  const getShiftsForEmployeeAndDate = (employeeId: string, date: Date): Shifts[] => {
+    return shifts.filter((s) => {
+      const empRecordId = extractRecordId(s.fields.employee);
+      return empRecordId === employeeId && s.fields.date && isSameDay(new Date(s.fields.date), date);
+    });
   };
 
-  const getEmployeeById = (id: string | null): Employee | undefined => {
+  const getEmployeeById = (id: string | null): Employees | undefined => {
     if (!id) return undefined;
     return employees.find((e) => e.record_id === id);
   };
@@ -95,70 +130,98 @@ export default function Dashboard() {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (shift: Shift) => {
+  const openEditDialog = (shift: Shifts) => {
     setEditingShift(shift);
+    const empRecordId = extractRecordId(shift.fields.employee);
     setFormData({
-      employee: shift.fields.employee || '',
-      date: shift.fields.date,
-      start_time: shift.fields.start_time,
-      end_time: shift.fields.end_time,
-      shift_type: shift.fields.shift_type,
+      employee: empRecordId || '',
+      date: shift.fields.date || '',
+      start_time: shift.fields.start_time || '06:00',
+      end_time: shift.fields.end_time || '14:00',
+      shift_type: shift.fields.shift_type || 'morning',
       notes: shift.fields.notes || '',
     });
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.employee || !formData.date) return;
 
-    if (editingShift) {
-      setShifts((prev) =>
-        prev.map((s) =>
-          s.record_id === editingShift.record_id
-            ? {
-                ...s,
-                updatedat: new Date().toISOString(),
-                fields: {
-                  employee: formData.employee,
-                  date: formData.date,
-                  start_time: formData.start_time,
-                  end_time: formData.end_time,
-                  shift_type: formData.shift_type,
-                  notes: formData.notes || null,
-                },
-              }
-            : s
-        )
-      );
-    } else {
-      const newShift: Shift = {
-        record_id: `shift-${Date.now()}`,
-        createdat: new Date().toISOString(),
-        updatedat: null,
-        fields: {
-          employee: formData.employee,
-          date: formData.date,
-          start_time: formData.start_time,
-          end_time: formData.end_time,
-          shift_type: formData.shift_type,
-          notes: formData.notes || null,
-        },
+    setIsSaving(true);
+    try {
+      const employeeUrl = createRecordUrl(APP_IDS.EMPLOYEES, formData.employee);
+      const shiftFields = {
+        employee: employeeUrl,
+        date: formData.date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        shift_type: formData.shift_type as 'morning' | 'afternoon' | 'night',
+        notes: formData.notes || undefined,
       };
-      setShifts((prev) => [...prev, newShift]);
+
+      if (editingShift) {
+        await LivingAppsService.updateShift(editingShift.record_id, shiftFields);
+        setShifts((prev) =>
+          prev.map((s) =>
+            s.record_id === editingShift.record_id
+              ? {
+                  ...s,
+                  updatedat: new Date().toISOString(),
+                  fields: shiftFields,
+                }
+              : s
+          )
+        );
+      } else {
+        const result = await LivingAppsService.createShift(shiftFields);
+        const newShift: Shifts = {
+          record_id: result.id || `shift-${Date.now()}`,
+          createdat: new Date().toISOString(),
+          updatedat: null,
+          fields: shiftFields,
+        };
+        setShifts((prev) => [...prev, newShift]);
+      }
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      alert('Fehler beim Speichern der Schicht. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsSaving(false);
     }
-    setIsDialogOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editingShift) return;
-    setShifts((prev) => prev.filter((s) => s.record_id !== editingShift.record_id));
-    setIsDialogOpen(false);
+
+    setIsSaving(true);
+    try {
+      await LivingAppsService.deleteShift(editingShift.record_id);
+      setShifts((prev) => prev.filter((s) => s.record_id !== editingShift.record_id));
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Fehler beim Löschen:', error);
+      alert('Fehler beim Löschen der Schicht. Bitte versuchen Sie es erneut.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getTodayShifts = () => {
     const today = new Date();
-    return shifts.filter((s) => isSameDay(new Date(s.fields.date), today));
+    return shifts.filter((s) => s.fields.date && isSameDay(new Date(s.fields.date), today));
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-slate-600">Lade Daten...</p>
+        </div>
+      </div>
+    );
+  }
 
   const todayShifts = getTodayShifts();
   const workingToday = new Set(todayShifts.map((s) => s.fields.employee)).size;
@@ -204,9 +267,10 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-slate-600">Schichten diese Woche</p>
                 <p className="text-2xl font-bold text-slate-900">
-                  {shifts.filter((s) =>
-                    weekDays.some((d) => isSameDay(new Date(s.fields.date), d))
-                  ).length}
+                  {shifts.filter((s) => {
+                    const date = s.fields.date;
+                    return date && weekDays.some((d) => isSameDay(new Date(date), d));
+                  }).length}
                 </p>
               </div>
             </CardContent>
@@ -288,14 +352,14 @@ export default function Dashboard() {
                                   key={shift.record_id}
                                   onClick={() => openEditDialog(shift)}
                                   className={`w-full rounded border p-2 text-left text-xs transition hover:shadow-md ${
-                                    SHIFT_COLORS[shift.fields.shift_type]
+                                    SHIFT_COLORS[shift.fields.shift_type || 'morning']
                                   }`}
                                 >
                                   <div className="font-medium">
-                                    {shift.fields.start_time} - {shift.fields.end_time}
+                                    {shift.fields.start_time || '??:??'} - {shift.fields.end_time || '??:??'}
                                   </div>
                                   <div className="mt-0.5 opacity-80">
-                                    {SHIFT_TYPE_LABELS[shift.fields.shift_type]}
+                                    {SHIFT_TYPE_LABELS[shift.fields.shift_type || 'morning']}
                                   </div>
                                   {shift.fields.notes && (
                                     <div className="mt-1 truncate text-[10px] opacity-70">
@@ -325,7 +389,7 @@ export default function Dashboard() {
               {weekDays.map((day, dayIndex) => {
                 const isToday = isSameDay(day, new Date());
                 const dayShifts = shifts.filter((s) =>
-                  isSameDay(new Date(s.fields.date), day)
+                  s.fields.date && isSameDay(new Date(s.fields.date), day)
                 );
                 return (
                   <div
@@ -354,25 +418,26 @@ export default function Dashboard() {
                     ) : (
                       <div className="space-y-2">
                         {dayShifts.map((shift) => {
-                          const emp = getEmployeeById(shift.fields.employee);
+                          const empRecordId = extractRecordId(shift.fields.employee);
+                          const emp = getEmployeeById(empRecordId);
                           return (
                             <button
                               key={shift.record_id}
                               onClick={() => openEditDialog(shift)}
                               className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition hover:shadow-md ${
-                                SHIFT_COLORS[shift.fields.shift_type]
+                                SHIFT_COLORS[shift.fields.shift_type || 'morning']
                               }`}
                             >
                               <div
                                 className="h-8 w-8 rounded-full flex items-center justify-center text-white font-medium text-sm"
                                 style={{ backgroundColor: emp?.fields.color || '#6b7280' }}
                               >
-                                {emp?.fields.name.charAt(0)}
+                                {emp?.fields.name?.charAt(0) || '?'}
                               </div>
                               <div className="flex-1">
                                 <div className="font-medium">{emp?.fields.name}</div>
                                 <div className="text-sm opacity-80">
-                                  {shift.fields.start_time} - {shift.fields.end_time} · {SHIFT_TYPE_LABELS[shift.fields.shift_type]}
+                                  {shift.fields.start_time || '??:??'} - {shift.fields.end_time || '??:??'} · {SHIFT_TYPE_LABELS[shift.fields.shift_type || 'morning']}
                                 </div>
                               </div>
                               <Pencil className="h-4 w-4 opacity-50" />
@@ -498,17 +563,23 @@ export default function Dashboard() {
               <Button
                 variant="destructive"
                 onClick={handleDelete}
+                disabled={isSaving}
                 className="w-full sm:w-auto"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
                 Löschen
               </Button>
             )}
             <div className="flex flex-1 justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
                 Abbrechen
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingShift ? 'Speichern' : 'Hinzufügen'}
               </Button>
             </div>

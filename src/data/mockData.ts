@@ -1,6 +1,6 @@
-import type { Employee, Shift } from '@/types/app';
+import type { Employees, Shifts } from '@/types/app';
 
-export const mockEmployees: Employee[] = [
+export const mockEmployees: Employees[] = [
   {
     record_id: 'emp-1',
     createdat: '2025-01-01T10:00:00Z',
@@ -71,7 +71,7 @@ const getWeekDates = (): string[] => {
 
 const weekDates = getWeekDates();
 
-export const mockShifts: Shift[] = [
+export const mockShifts: Shifts[] = [
   // Monday
   {
     record_id: 'shift-1',
@@ -83,7 +83,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -96,7 +96,7 @@ export const mockShifts: Shift[] = [
       start_time: '14:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -109,7 +109,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   // Tuesday
@@ -123,7 +123,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -149,7 +149,7 @@ export const mockShifts: Shift[] = [
       start_time: '14:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   // Wednesday
@@ -163,7 +163,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -189,7 +189,7 @@ export const mockShifts: Shift[] = [
       start_time: '14:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   // Thursday
@@ -203,7 +203,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -216,7 +216,7 @@ export const mockShifts: Shift[] = [
       start_time: '22:00',
       end_time: '06:00',
       shift_type: 'night',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -229,7 +229,7 @@ export const mockShifts: Shift[] = [
       start_time: '14:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   // Friday
@@ -243,7 +243,7 @@ export const mockShifts: Shift[] = [
       start_time: '06:00',
       end_time: '14:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
   {
@@ -269,7 +269,7 @@ export const mockShifts: Shift[] = [
       start_time: '14:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   // Saturday
@@ -296,7 +296,7 @@ export const mockShifts: Shift[] = [
       start_time: '16:00',
       end_time: '22:00',
       shift_type: 'afternoon',
-      notes: null,
+      notes: undefined,
     },
   },
   // Sunday
@@ -310,7 +310,7 @@ export const mockShifts: Shift[] = [
       start_time: '08:00',
       end_time: '16:00',
       shift_type: 'morning',
-      notes: null,
+      notes: undefined,
     },
   },
 ];

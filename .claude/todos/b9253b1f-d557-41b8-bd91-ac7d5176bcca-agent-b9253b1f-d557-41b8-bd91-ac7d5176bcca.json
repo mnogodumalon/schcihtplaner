@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Read livingAppsService.ts to understand the API service",
+    "status": "completed",
+    "activeForm": "Reading livingAppsService.ts"
+  },
+  {
+    "content": "Implement data persistence with Living Apps API",
+    "status": "completed",
+    "activeForm": "Implementing data persistence"
+  },
+  {
+    "content": "Run npm build to verify compilation",
+    "status": "completed",
+    "activeForm": "Running build"
+  },
+  {
+    "content": "Deploy to GitHub",
+    "status": "in_progress",
+    "activeForm": "Deploying to GitHub"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "debug": "Calling MCP tool: deploy_to_github",
+    "timestamp": "2026-01-30T14:14:55.659Z",
+    "sessionId": "b9253b1f-d557-41b8-bd91-ac7d5176bcca",
+    "cwd": "/home/user/app"
+  },
+  {
+    "debug": "Tool 'deploy_to_github' completed successfully in 9s",
+    "timestamp": "2026-01-30T14:15:05.466Z",
+    "sessionId": "b9253b1f-d557-41b8-bd91-ac7d5176bcca",
+    "cwd": "/home/user/app"
+  },
+  {
+    "debug": "Calling MCP tool: deploy_to_github",
+    "timestamp": "2026-01-30T14:15:20.214Z",
+    "sessionId": "b9253b1f-d557-41b8-bd91-ac7d5176bcca",
+    "cwd": "/home/user/app"
+  },
+  {
+    "debug": "Tool 'deploy_to_github' completed successfully in 32ms",
+    "timestamp": "2026-01-30T14:15:20.246Z",
+    "sessionId": "b9253b1f-d557-41b8-bd91-ac7d5176bcca",
+    "cwd": "/home/user/app"
+  }
+]
